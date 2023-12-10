@@ -2,6 +2,8 @@ import { FC, DragEvent, useState, useEffect, SyntheticEvent } from "react";
 import moment from "moment";
 import shortid from "shortid";
 import axios from "axios";
+import { addFuncs } from "../../additional";
+import { ICalendar } from "../../additional";
 import {
   CommonHoliday,
   DateDiv,
@@ -11,14 +13,7 @@ import {
   Div,
 } from "./TableBody.styled";
 
-interface ICalendar {
-  firstWeek: string[];
-  secondWeek: string[];
-  thirdWeek: string[];
-  fourthWeek: string[];
-  fifthWeek: string[];
-  sixthWeek: string[];
-}
+const { pushElem } = addFuncs;
 
 interface IProps {
   date: string;
@@ -50,67 +45,9 @@ const TableBody: FC<IProps> = ({
   // const [startDrag, setStartDrag] = useState<boolean>(false);
   const [reload, setReload] = useState<boolean>(false);
 
-  const dates: string[] = [...Array(42)];
-  const startDate: any = moment(date)
-    .startOf("month")
-    .startOf("week")
-    .format("YYYY MM DD");
+  addFuncs.createDates(date);
 
-  const firstDayInMonth: number = 1;
-  const daysInWeek: number = 7;
-
-  createDates(dates);
-
-  function createDates(arr: any[]): any {
-    let num: number = 0;
-    arr.map(() => {
-      arr[num] = moment(startDate).add(num, "days").format("YYYY MM DD");
-      num += 1;
-    });
-  }
-
-  const calendarDates: ICalendar = fillCalendar(dates);
-
-  function fillCalendar(data: string[]): ICalendar {
-    return data.reduce(
-      (acc: ICalendar, el: string): any => {
-        switch (Math.floor(dates.indexOf(el) / daysInWeek)) {
-          case 0:
-            pushElem(acc.firstWeek, el);
-            return acc;
-          case 1:
-            pushElem(acc.secondWeek, el);
-            return acc;
-          case 2:
-            pushElem(acc.thirdWeek, el);
-            return acc;
-          case 3:
-            pushElem(acc.fourthWeek, el);
-            return acc;
-          case 4:
-            pushElem(acc.fifthWeek, el);
-            return acc;
-          case 5:
-            pushElem(acc.sixthWeek, el);
-            return acc;
-          default:
-            return acc;
-        }
-      },
-      {
-        firstWeek: [],
-        secondWeek: [],
-        thirdWeek: [],
-        fourthWeek: [],
-        fifthWeek: [],
-        sixthWeek: [],
-      }
-    );
-  }
-
-  function pushElem(arr: any, elToPush: any) {
-    return arr.push(elToPush);
-  }
+  const calendarDates: ICalendar = addFuncs.fillCalendar();
 
   function handleEventClick(e: SyntheticEvent): void {
     const { textContent } = e.target as HTMLElement;
@@ -124,7 +61,11 @@ const TableBody: FC<IProps> = ({
     const {
       dataset: { date },
     } = parentNode?.parentNode as HTMLElement;
-
+    console.log(
+      `${SERVER_ADDRESS}/events/${date
+        ?.split(" ")
+        .join("_")}-${previousSibling?.textContent?.split(" ").join("_")}`
+    );
     await axios.delete(
       `${SERVER_ADDRESS}/events/${date
         ?.split(" ")
@@ -198,11 +139,10 @@ const TableBody: FC<IProps> = ({
       const {
         data: { payload },
       } = fetchedEvents;
-      console.log("object", payload);
 
       return payload?.reduce((acc: any[], el: IEl, idx: number) => {
         if (!acc.length) {
-          pushElem(acc, [el]);
+          addFuncs.pushElem(acc, [el]);
           return acc;
         }
 
@@ -258,12 +198,13 @@ const TableBody: FC<IProps> = ({
                     style={{
                       backgroundColor:
                         el === moment(Date.now()).format("YYYY MM DD")
-                          ? "tomato"
+                          ? `"tomato"`
                           : "",
                     }}
                   >
                     <>
-                      {Number(el.split(" ").at(-1)) === firstDayInMonth ? (
+                      {Number(el.split(" ").at(-1)) ===
+                      addFuncs._firstDayInMonth ? (
                         <Text>{moment(el).format("DD MMM")}</Text>
                       ) : (
                         <p>{el.split(" ").at(-1)}</p>
