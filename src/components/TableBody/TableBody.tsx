@@ -292,7 +292,6 @@ const TableBody: FC<IProps> = ({
                         );
                       }
                       const { event_title } = obj[0];
-                      console.log(obj, deleteElem, event_title);
                       return renderLayout(event_title, deleteElem);
                     })}
                   </>
