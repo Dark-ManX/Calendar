@@ -9,7 +9,7 @@ interface IEventProps {
   handleModalVisibility: () => void;
 }
 
-const REQUEST_ADDRESS = "http://localhost:2222";
+const REQUEST_ADDRESS = "https://calendar-server-dark-manx.vercel.app";
 
 const AddEvent: FC<IEventProps> = ({
   date,
