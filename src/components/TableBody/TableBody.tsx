@@ -35,7 +35,7 @@ interface IEl {
 
 const REQUEST_ADDRESS = "https://date.nager.at";
 const COUNTRY = "UA";
-const SERVER_ADDRESS = "https://calendar-server-ten.vercel.app";
+const SERVER_ADDRESS = "https://calendar-server-dark-manx.vercel.app/";
 
 const TableBody: FC<IProps> = ({
   date,
