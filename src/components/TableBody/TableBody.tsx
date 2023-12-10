@@ -193,7 +193,7 @@ const TableBody: FC<IProps> = ({
     getMyEvents().then((res) => setMyEvents(res));
 
     async function getMyEvents(): Promise<any> {
-      const fetchedEvents = await axios.get(`${SERVER_ADDRESS}/events/getAll`);
+      const fetchedEvents = await axios.get(`${SERVER_ADDRESS}/events/`);
 
       const {
         data: { payload },
