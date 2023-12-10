@@ -198,6 +198,7 @@ const TableBody: FC<IProps> = ({
       const {
         data: { payload },
       } = fetchedEvents;
+      console.log("object", payload);
 
       return payload?.reduce((acc: any[], el: IEl, idx: number) => {
         if (!acc.length) {
@@ -290,7 +291,8 @@ const TableBody: FC<IProps> = ({
                           renderLayout(event_title, deleteElem)
                         );
                       }
-                      const { event_title } = obj;
+                      const { event_title } = obj[0];
+                      console.log(obj, deleteElem, event_title);
                       return renderLayout(event_title, deleteElem);
                     })}
                   </>
