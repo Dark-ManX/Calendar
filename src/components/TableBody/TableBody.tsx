@@ -1,18 +1,15 @@
-import { FC, DragEvent, useState, useEffect, SyntheticEvent } from "react";
-import { DndProvider } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
-import moment from "moment";
-import shortid from "shortid";
 import axios from "axios";
-import { addFuncs } from "../../additional";
-import { ICalendar, IEl } from "../../additional";
+import moment from "moment";
+import { DragEvent, SyntheticEvent, useEffect, useState } from "react";
+import shortid from "shortid";
+import { ICalendar, IEl, addFuncs } from "../../additional";
 import {
   CommonHoliday,
   DateDiv,
+  Div,
   StyledRow,
   StyledTd,
   Text,
-  Div,
 } from "./TableBody.styled";
 
 const { pushElem, findElem, createMonthCondition, getCurrentMonth } = addFuncs;
@@ -38,7 +35,6 @@ const TableBody = ({
   const [myEvents, setMyEvents] = useState<any[]>([]);
   const [deleteElem, setDeleteElem] = useState<string | undefined>("");
   const [checkedEvent, setCheckedEvent] = useState<boolean>(false);
-  // const [movedEvent, setMovedEvent] = useState<any>(null);
   const [reload, setReload] = useState<boolean>(false);
 
   let movedIdx: number = -1;
@@ -51,21 +47,14 @@ const TableBody = ({
     const { textContent } = e.target as HTMLElement;
     setCheckedEvent(!checkedEvent);
     setDeleteElem(textContent ? textContent : "");
-
-    console.log("delElem", deleteElem, textContent);
   }
 
   async function handleDelete(e: SyntheticEvent) {
-    const { parentNode, previousSibling } =
-      e.currentTarget as HTMLButtonElement;
+    const { parentNode, previousSibling } = e.target as HTMLButtonElement;
     const {
       dataset: { date },
-    } = parentNode?.parentNode as HTMLElement;
-    console.log(
-      `${SERVER_ADDRESS}/events/${date
-        ?.split(" ")
-        .join("_")}-${previousSibling?.textContent?.split(" ").join("_")}`
-    );
+    } = parentNode?.parentNode?.parentNode as HTMLElement;
+
     await axios.delete(
       `${SERVER_ADDRESS}/events/${date
         ?.split(" ")
@@ -76,7 +65,6 @@ const TableBody = ({
   }
 
   function handleDragStart(e: DragEvent<HTMLDivElement>, name: string) {
-    console.log(myEvents.indexOf(findElem(myEvents, name)));
     movedIdx = myEvents.indexOf(findElem(myEvents, name));
   }
 
@@ -92,15 +80,19 @@ const TableBody = ({
     const el = textContent ? findElem(myEvents, textContent) : null;
     const idx = myEvents.indexOf(el);
 
-    setMyEvents((prev: IEl[]) => {
+    setMyEvents((prev: any[]) => {
       return prev.map((el) => {
-        if (el.event_title === textContent) {
-          el.order = movedIdx + 1;
-          return el;
+        if (el.length) {
+          return el.map((elem: IEl) => {
+            elem.order = movedIdx + 1;
+            return elem;
+          });
         } else if (el.event_title === myEvents[movedIdx].event_title) {
-          el.order = idx + 1;
+          myEvents[idx].order = movedIdx;
+          el.order = idx;
           return el;
         }
+        return el;
       });
     });
 
@@ -128,10 +120,7 @@ const TableBody = ({
   }
 
   useEffect(() => {
-    getPublicHolidays().then((res) => {
-      console.log(res);
-      setHolidays(res);
-    });
+    getPublicHolidays().then((res) => setHolidays(res));
 
     async function getPublicHolidays(): Promise<any[]> {
       const fetchedHolidays = await axios.get(
@@ -143,9 +132,7 @@ const TableBody = ({
       return fetchedHolidays.data;
     }
 
-    getMyEvents().then((res) => {
-      setMyEvents(res);
-    });
+    getMyEvents().then((res) => setMyEvents(res));
 
     async function getMyEvents(): Promise<any> {
       const fetchedEvents = await axios.get(`${SERVER_ADDRESS}/events/`);
@@ -153,32 +140,35 @@ const TableBody = ({
       const {
         data: { payload },
       } = fetchedEvents;
-      console.log("object", payload);
 
       let order: number = 0;
 
-      return payload?.reduce((acc: any, el: IEl) => {
+      return payload?.reduce((acc: any, el: IEl, idx: number) => {
         order += 1;
 
         if (!acc.length) {
-          addFuncs.pushElem(acc, { ...el, order });
-          console.log(acc);
-          return acc;
-        }
-
-        const condition = acc.find((item: IEl) => {
-          return item.event_date === el.event_date;
-        });
-
-        if (!condition) {
           pushElem(acc, { ...el, order });
           return acc;
         }
 
-        const index = acc.indexOf(condition);
-        acc = [acc[index], { ...el, order }];
-        console.log(acc);
-        return acc;
+        const accCondition = acc.find((item: any, idx: number) => {
+          if (item.length) {
+            return item[0].event_date === el.event_date;
+          }
+          return item.event_date === el.event_date;
+        });
+
+        if (accCondition) {
+          [acc[acc.indexOf(accCondition)]].push({ ...el, order });
+          const index = acc.indexOf(accCondition);
+          acc[index].length
+            ? (acc = [...acc[index], { ...el, order }])
+            : acc.push({ ...el, order });
+          return acc;
+        } else {
+          acc.push({ ...el, order });
+          return acc;
+        }
       }, []);
     }
   }, [date, reload, rerendering]);
@@ -231,7 +221,9 @@ const TableBody = ({
                   </>
                   <div>
                     {myEvents
-                      .sort((a, b) => a.order - b.order)
+                      .sort((a, b) => {
+                        return a.order - b.order;
+                      })
                       .map((obj: any) => {
                         if (
                           moment(

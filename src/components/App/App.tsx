@@ -1,5 +1,5 @@
 import moment from "moment";
-import { FC, SyntheticEvent, useEffect, useState } from "react";
+import { FC, SyntheticEvent, useState } from "react";
 import AddEvent from "../AddEvent/AddEvent";
 import Modal from "../Modal";
 import TableBody from "../TableBody";
@@ -49,6 +49,7 @@ const App: FC = () => {
       dataset: { date },
     } = e.target as HTMLElement;
     if (nodeName !== "TD") return;
+    console.dir(e.currentTarget);
     setModalShown(!modalShown);
     setEventDate(date);
   }

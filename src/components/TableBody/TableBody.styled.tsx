@@ -14,6 +14,7 @@ export const StyledTd = styled.td`
   justify-content: start;
   align-items: start;
   padding: 5px;
+  overflow: hidden;
 `;
 
 export const DateDiv = styled.div`
