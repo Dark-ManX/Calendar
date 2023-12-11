@@ -9,6 +9,15 @@ export interface ICalendar {
   sixthWeek: string[];
 }
 
+export interface IEl {
+  id: number;
+  event_date: string;
+  event_title: string;
+  order?: number;
+}
+
+moment.updateLocale("en", { week: { dow: 1 } });
+
 class AdditionalFunc {
   readonly _daysInWeek: number;
   public _startDate: string;
@@ -74,6 +83,33 @@ class AdditionalFunc {
 
   public pushElem(arr: any, elToPush: any): any[] {
     return arr.push(elToPush);
+  }
+
+  public findElem(arr: IEl[], condition: string): IEl | undefined {
+    return arr.find((el) => el.event_title === condition);
+  }
+
+  public createMonthCondition(arg: string) {
+    return Number(arg.split(" ").slice(1).join(""));
+  }
+
+  public getCurrentMonth(arg: string): number {
+    switch (arg) {
+      case "start":
+        return Number(
+          moment(Date.now())
+            .startOf("month")
+            .format("MM DD")
+            .split(" ")
+            .join("")
+        );
+      case "end":
+        return Number(
+          moment(Date.now()).endOf("month").format("MM DD").split(" ").join("")
+        );
+      default:
+        return 0;
+    }
   }
 }
 

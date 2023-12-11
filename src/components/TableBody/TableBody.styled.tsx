@@ -38,5 +38,7 @@ export const Text = styled.p`
 `;
 
 export const Div = styled.div`
+  display: block;
+  width: 100%;
   margin: 1px;
 `;

@@ -1,9 +1,11 @@
 import { FC, DragEvent, useState, useEffect, SyntheticEvent } from "react";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 import moment from "moment";
 import shortid from "shortid";
 import axios from "axios";
 import { addFuncs } from "../../additional";
-import { ICalendar } from "../../additional";
+import { ICalendar, IEl } from "../../additional";
 import {
   CommonHoliday,
   DateDiv,
@@ -13,7 +15,7 @@ import {
   Div,
 } from "./TableBody.styled";
 
-const { pushElem } = addFuncs;
+const { pushElem, findElem, createMonthCondition, getCurrentMonth } = addFuncs;
 
 interface IProps {
   date: string;
@@ -22,28 +24,24 @@ interface IProps {
   clickedDate: string | undefined;
 }
 
-interface IEl {
-  id: number;
-  event_date: string;
-  event_title: string;
-}
-
 const REQUEST_ADDRESS = "https://date.nager.at";
 const COUNTRY = "UA";
 const SERVER_ADDRESS = "https://calendar-server-dark-manx.vercel.app";
 
-const TableBody: FC<IProps> = ({
+const TableBody = ({
   date,
   rerendering,
   handleTableClick,
   clickedDate,
-}) => {
+}: IProps) => {
   const [holidays, setHolidays] = useState<any[]>([]);
   const [myEvents, setMyEvents] = useState<any[]>([]);
   const [deleteElem, setDeleteElem] = useState<string | undefined>("");
   const [checkedEvent, setCheckedEvent] = useState<boolean>(false);
-  // const [startDrag, setStartDrag] = useState<boolean>(false);
+  // const [movedEvent, setMovedEvent] = useState<any>(null);
   const [reload, setReload] = useState<boolean>(false);
+
+  let movedIdx: number = -1;
 
   addFuncs.createDates(date);
 
@@ -53,6 +51,8 @@ const TableBody: FC<IProps> = ({
     const { textContent } = e.target as HTMLElement;
     setCheckedEvent(!checkedEvent);
     setDeleteElem(textContent ? textContent : "");
+
+    console.log("delElem", deleteElem, textContent);
   }
 
   async function handleDelete(e: SyntheticEvent) {
@@ -75,27 +75,37 @@ const TableBody: FC<IProps> = ({
     setReload(!reload);
   }
 
-  function handleDragStart(e: DragEvent<HTMLDivElement>): void {
-    const { offsetLeft } = e.target as HTMLElement;
-    console.log("dragStart", offsetLeft);
-    // e.preventDefault();
-    // setStartDrag(true);
+  function handleDragStart(e: DragEvent<HTMLDivElement>, name: string) {
+    console.log(myEvents.indexOf(findElem(myEvents, name)));
+    movedIdx = myEvents.indexOf(findElem(myEvents, name));
   }
 
-  function handleDragEnd(e: DragEvent<HTMLDivElement>) {
-    const { offsetLeft } = e.target as HTMLElement;
-    console.log("dragEnd", offsetLeft);
-  }
+  function handleDragEnd(e: DragEvent<HTMLDivElement>) {}
 
   function handleDragOver(e: DragEvent<HTMLDivElement>) {
-    const { offsetLeft } = e.target as HTMLElement;
-    console.log("dragover", offsetLeft);
+    e.preventDefault();
   }
 
-  function handleDragDrop(e: DragEvent<HTMLDivElement>) {
-    const { offsetLeft } = e.target as HTMLElement;
-    console.log("dragDrop");
-    console.dir(e.target);
+  function handleDragDrop(e: DragEvent<HTMLDivElement>, name: string) {
+    const { textContent } = e.target as HTMLElement;
+
+    const el = textContent ? findElem(myEvents, textContent) : null;
+    const idx = myEvents.indexOf(el);
+
+    setMyEvents((prev: IEl[]) => {
+      return prev.map((el) => {
+        if (el.event_title === textContent) {
+          el.order = movedIdx + 1;
+          return el;
+        } else if (el.event_title === myEvents[movedIdx].event_title) {
+          el.order = idx + 1;
+          return el;
+        }
+      });
+    });
+
+    e.stopPropagation();
+    e.preventDefault();
   }
 
   function renderLayout(name: string, event: string = "") {
@@ -103,11 +113,10 @@ const TableBody: FC<IProps> = ({
       <Div
         key={shortid.generate()}
         draggable
-        onDragStart={handleDragStart}
-        // onDragEnd={handleDragEnd}
+        onDrag={(e) => handleDragStart(e, name)}
         onDragOver={handleDragOver}
-        // onDragLeave={handleDragLeave}
-        onDrop={handleDragDrop}
+        onDragEnd={handleDragEnd}
+        onDrop={(e) => handleDragDrop(e, name)}
         onClick={handleEventClick}
       >
         <CommonHoliday>{name}</CommonHoliday>
@@ -119,7 +128,10 @@ const TableBody: FC<IProps> = ({
   }
 
   useEffect(() => {
-    getPublicHolidays().then((res) => setHolidays(res));
+    getPublicHolidays().then((res) => {
+      console.log(res);
+      setHolidays(res);
+    });
 
     async function getPublicHolidays(): Promise<any[]> {
       const fetchedHolidays = await axios.get(
@@ -131,7 +143,9 @@ const TableBody: FC<IProps> = ({
       return fetchedHolidays.data;
     }
 
-    getMyEvents().then((res) => setMyEvents(res));
+    getMyEvents().then((res) => {
+      setMyEvents(res);
+    });
 
     async function getMyEvents(): Promise<any> {
       const fetchedEvents = await axios.get(`${SERVER_ADDRESS}/events/`);
@@ -139,24 +153,31 @@ const TableBody: FC<IProps> = ({
       const {
         data: { payload },
       } = fetchedEvents;
+      console.log("object", payload);
 
-      return payload?.reduce((acc: any[], el: IEl, idx: number) => {
+      let order: number = 0;
+
+      return payload?.reduce((acc: any, el: IEl) => {
+        order += 1;
+
         if (!acc.length) {
-          addFuncs.pushElem(acc, [el]);
+          addFuncs.pushElem(acc, { ...el, order });
+          console.log(acc);
           return acc;
         }
 
-        const condition = acc.find((item: IEl[], i: number) => {
-          return item[0].event_date === el.event_date;
+        const condition = acc.find((item: IEl) => {
+          return item.event_date === el.event_date;
         });
 
         if (!condition) {
-          pushElem(acc, [el]);
+          pushElem(acc, { ...el, order });
           return acc;
         }
 
         const index = acc.indexOf(condition);
-        pushElem(acc[index], el);
+        acc = [acc[index], { ...el, order }];
+        console.log(acc);
         return acc;
       }, []);
     }
@@ -174,22 +195,8 @@ const TableBody: FC<IProps> = ({
                   data-date={el}
                   style={{
                     backgroundColor:
-                      Number(el!.split(" ")!.slice(1).join("")) <
-                        Number(
-                          moment(Date.now())
-                            .startOf("month")
-                            .format("MM DD")
-                            .split(" ")
-                            .join("")
-                        ) ||
-                      Number(el.split(" ").slice(1).join("")) >
-                        Number(
-                          moment(Date.now())
-                            .endOf("month")
-                            .format("MM DD")
-                            .split(" ")
-                            .join("")
-                        )
+                      createMonthCondition(el) < getCurrentMonth("start") ||
+                      createMonthCondition(el) > getCurrentMonth("end")
                         ? "lightgray"
                         : "",
                   }}
@@ -222,20 +229,30 @@ const TableBody: FC<IProps> = ({
                       return renderLayout(name, deleteElem);
                     })}
                   </>
-                  <>
-                    {myEvents.map((obj: any) => {
-                      if (moment(obj[0].event_date).format("YYYY MM DD") !== el)
-                        return;
+                  <div>
+                    {myEvents
+                      .sort((a, b) => a.order - b.order)
+                      .map((obj: any) => {
+                        if (
+                          moment(
+                            obj[0] ? obj[0].event_date : obj.event_date
+                          ).format("YYYY MM DD") !== el
+                        )
+                          return;
 
-                      if (obj.length > 1) {
-                        return obj.map(({ event_title }: IEl) =>
-                          renderLayout(event_title, deleteElem)
-                        );
-                      }
-                      const { event_title } = obj[0];
-                      return renderLayout(event_title, deleteElem);
-                    })}
-                  </>
+                        if (obj.length > 1) {
+                          return (
+                            <>
+                              {obj.map(({ event_title }: IEl) => {
+                                return renderLayout(event_title, deleteElem);
+                              })}
+                            </>
+                          );
+                        }
+                        const { event_title } = obj;
+                        return renderLayout(event_title, deleteElem);
+                      })}
+                  </div>
                 </StyledTd>
               );
             })}
